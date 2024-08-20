@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# Skript pro aktualizaci systému, instalaci balíčků pomocí apt, flatpak a deb,
-# odinstalaci nepotřebných balíčků, vyčištění systému a nastavení VLC jako výchozího přehrávače
+# Skript pro aktualizaci systému a instalaci balíčků pomocí apt, flatpak a .deb
 
 # Funkce pro kontrolu, zda je skript spuštěn s právy superuživatele
 check_root() {
@@ -11,21 +10,34 @@ check_root() {
   fi
 }
 
-# Funkce pro zobrazení progresu
-show_progress() {
-  local current=$1
-  local total=$2
-  local app_name=$3
-  local source=$4
-
-  local percent=$(( (current * 100) / total ))
-  echo -ne "[$percent%] $app_name z $source...\r"
+# Funkce pro zobrazení seznamu všech aplikací, které skript obsahuje
+show_applications() {
+  echo "Tento skript obsahuje následující aplikace k instalaci:"
+  echo ""
+  echo "APT balíčky:"
+  for package in "${apt_packages[@]}"; do
+    echo "- $package"
+  done
+  echo ""
+  echo ".deb balíčky:"
+  echo "- Discord"
+  echo "- OnlyOffice Desktop Editors"
+  echo ""
+  echo "Flatpak balíčky:"
+  for package in "${flatpak_packages[@]}"; do
+    app_name=$(echo "$package" | awk -F '.' '{print $NF}')
+    echo "- $app_name"
+  done
+  echo ""
+  echo "Microsoft fonty:"
+  echo "- ttf-mscorefonts-installer"
+  echo ""
 }
 
 # Funkce pro aktualizaci systému pomocí apt
 update_system_apt() {
   echo "Aktualizace systému pomocí apt..."
-  if sudo apt update -y &>/dev/null && sudo apt upgrade -y &>/dev/null; then
+  if sudo apt update && sudo apt upgrade -y; then
     echo "Systém byl úspěšně aktualizován pomocí apt."
   else
     echo "Chyba při aktualizaci systému pomocí apt." >&2
@@ -35,130 +47,112 @@ update_system_apt() {
 # Funkce pro aktualizaci aplikací nainstalovaných pomocí flatpak
 update_system_flatpak() {
   echo "Aktualizace aplikací nainstalovaných pomocí flatpak..."
-  if flatpak update -y &>/dev/null; then
+  if flatpak update -y; then
     echo "Aplikace nainstalované pomocí flatpak byly úspěšně aktualizovány."
   else
     echo "Chyba při aktualizaci aplikací pomocí flatpak." >&2
   fi
 }
 
-# Seznam balíčků pro apt (bez grub-customizer)
-apt_packages=("kodi" "vlc" "audacity" "easytag" "handbrake" "kdenlive" "obs-studio" "gimp" "krita" "virtualbox")
+# Seznam balíčků pro apt (včetně Microsoft fontů)
+apt_packages=("kodi" "vlc" "audacity" "easytag" "handbrake" "kdenlive" "obs-studio" "gimp" "krita" "virtualbox" "ttf-mscorefonts-installer")
 
 # Funkce pro instalaci všech balíčků pomocí apt s kontrolou nainstalovaných balíčků
 install_all_apt_packages() {
+  total_packages=${#apt_packages[@]}
   echo "Instalace balíčků z apt..."
-  local total=${#apt_packages[@]}
   for i in "${!apt_packages[@]}"; do
     package=${apt_packages[$i]}
+    percentage=$(( (i + 1) * 100 / total_packages ))
+    echo "[$percentage%] $package"
     if dpkg -l | grep -q "^ii  $package "; then
-      show_progress $((i+1)) $total $package "APT (již nainstalováno)"
+      echo "$package je již nainstalován, přeskočeno."
     else
-      show_progress $((i+1)) $total $package "APT"
-      sudo apt install -y "$package" &>/dev/null
+      if sudo apt install -y "$package"; then
+        echo "Instalace aplikace $package dokončena."
+      else
+        echo "Chyba při instalaci $package." >&2
+      fi
     fi
   done
-  echo -e "\nInstalace balíčků z apt dokončena."
+  echo "Instalace balíčků z apt dokončena."
 }
 
 # Funkce pro stažení a instalaci Discord a OnlyOffice pomocí .deb balíčků
 install_deb_packages() {
   echo "Instalace balíčků z .deb..."
-  
-  # Seznam .deb balíčků
+  # Discord a OnlyOffice Desktop Editors
   deb_packages=("discord" "onlyoffice-desktopeditors")
-  local total=${#deb_packages[@]}
+  total_packages=${#deb_packages[@]}
 
-  # Discord
-  if dpkg -l | grep -q "^ii  discord "; then
-    show_progress 1 $total "Discord" ".deb (již nainstalováno)"
-  else
-    show_progress 1 $total "Discord" ".deb"
-    wget -O discord.deb "https://discord.com/api/download?platform=linux&format=deb" &>/dev/null
-    sudo dpkg -i discord.deb &>/dev/null
-    sudo apt-get install -f -y &>/dev/null  # Řešení závislostí
-    rm discord.deb
-  fi
-
-  # OnlyOffice Desktop Editors
-  if dpkg -l | grep -q "^ii  onlyoffice-desktopeditors "; then
-    show_progress 2 $total "OnlyOffice Desktop Editors" ".deb (již nainstalováno)"
-  else
-    show_progress 2 $total "OnlyOffice Desktop Editors" ".deb"
-    wget -O onlyoffice-desktopeditors.deb "https://download.onlyoffice.com/install/desktop/editors/linux/onlyoffice-desktopeditors_amd64.deb" &>/dev/null
-    sudo dpkg -i onlyoffice-desktopeditors.deb &>/dev/null
-    sudo apt-get install -f -y &>/dev/null  # Řešení závislostí
-    rm onlyoffice-desktopeditors.deb
-  fi
-
-  echo -e "\nInstalace balíčků z .deb dokončena."
+  # Stažení a instalace Discord
+  for i in "${!deb_packages[@]}"; do
+    percentage=$(( (i + 1) * 100 / total_packages ))
+    package=${deb_packages[$i]}
+    echo "[$percentage%] $package"
+    
+    if dpkg -l | grep -q "^ii  $package "; then
+      echo "$package je již nainstalován, přeskočeno."
+    else
+      if [ "$package" == "discord" ]; then
+        echo "Stahování Discord..."
+        wget -O discord.deb "https://discord.com/api/download?platform=linux&format=deb"
+        echo "Instalace Discord..."
+        sudo dpkg -i discord.deb
+        sudo apt-get install -f -y  # Řešení závislostí
+        rm discord.deb
+      elif [ "$package" == "onlyoffice-desktopeditors" ]; then
+        echo "Stahování OnlyOffice Desktop Editors..."
+        wget -O onlyoffice-desktopeditors.deb "https://download.onlyoffice.com/install/desktop/editors/linux/onlyoffice-desktopeditors_amd64.deb"
+        echo "Instalace OnlyOffice Desktop Editors..."
+        sudo dpkg -i onlyoffice-desktopeditors.deb
+        sudo apt-get install -f -y  # Řešení závislostí
+        rm onlyoffice-desktopeditors.deb
+      fi
+      echo "Instalace aplikace $package dokončena."
+    fi
+  done
+  echo "Instalace balíčků z .deb dokončena."
 }
 
 # Funkce pro instalaci aplikací pomocí flatpak s kontrolou nainstalovaných balíčků
 install_flatpak_if_not_in_apt() {
-  flatpak_packages=("com.github.tchx84.Flatseal" "com.spotify.Client" "com.visualstudio.code" "com.bitwarden.desktop" "net.subtitleedit.SubtitleEdit")
-
+  flatpak_packages=("com.github.tchx84.Flatseal" "com.spotify.Client" "com.visualstudio.code" "com.bitwarden.desktop")
+  total_packages=${#flatpak_packages[@]}
   echo "Instalace balíčků z Flathub..."
-  local total=${#flatpak_packages[@]}
+  
   for i in "${!flatpak_packages[@]}"; do
     package=${flatpak_packages[$i]}
     app_name=$(echo "$package" | awk -F '.' '{print $NF}')
+    percentage=$(( (i + 1) * 100 / total_packages ))
+    echo "[$percentage%] $app_name"
     
-    # Zkontrolujeme, zda je již balíček nainstalován přes flatpak
-    if flatpak list | grep -q "$package"; then
-      show_progress $((i+1)) $total $app_name "Flathub (již nainstalováno)"
+    # Zkontrolujeme, zda je balíček dostupný v apt
+    if ! apt-cache show "$app_name" &>/dev/null; then
+      # Zkontrolujeme, zda je již balíček nainstalován přes flatpak
+      if flatpak list | grep -q "$package"; then
+        echo "$app_name je již nainstalován pomocí flatpak, přeskočeno."
+      else
+        if flatpak install -y "$package"; then
+          echo "Instalace aplikace $app_name dokončena."
+        else
+          echo "Chyba při instalaci $app_name pomocí flatpak." >&2
+        fi
+      fi
     else
-      show_progress $((i+1)) $total $app_name "Flathub"
-      flatpak install -y "$package" &>/dev/null
+      echo "$app_name je dostupný v apt. Přeskočeno."
     fi
   done
-  echo -e "\nInstalace balíčků z Flathub dokončena."
-}
-
-# Funkce pro odinstalaci nepotřebných balíčků
-remove_unwanted_packages() {
-  echo "Odinstalace nepotřebných balíčků..."
-  unwanted_packages=("matrix" "libreoffice*" "celluloid" "hypnotix" "rhythmbox")
-  local total=${#unwanted_packages[@]}
-  for i in "${!unwanted_packages[@]}"; do
-    package=${unwanted_packages[$i]}
-    if dpkg -l | grep -q "^ii  $package"; then
-      show_progress $((i+1)) $total $package "Odinstalace"
-      sudo apt purge -y "$package" &>/dev/null
-      sudo apt autoremove -y &>/dev/null
-    else
-      show_progress $((i+1)) $total $package "Odinstalace (již odstraněno)"
-    fi
-  done
-  echo -e "\nOdinstalace nepotřebných balíčků dokončena."
-}
-
-# Funkce pro vyčištění systému
-clean_system() {
-  echo "Čištění systému..."
-  sudo apt autoremove -y &>/dev/null
-  sudo apt autoclean -y &>/dev/null
-  sudo apt clean -y &>/dev/null
-  echo "Systém byl úspěšně vyčištěn."
-}
-
-# Funkce pro nastavení VLC jako výchozího přehrávače pro multimédia
-set_vlc_as_default() {
-  echo "Nastavení VLC jako výchozího přehrávače pro multimédia..."
-  xdg-mime default vlc.desktop video/mp4 video/x-matroska video/webm video/x-flv video/mpeg audio/x-mpegurl audio/x-wav audio/mpeg
-  echo "VLC byl úspěšně nastaven jako výchozí přehrávač."
+  echo "Instalace balíčků z Flathub dokončena."
 }
 
 # Funkce pro zobrazení nápovědy
 show_help() {
   echo "Použití: $0 [volba]"
-  echo "  -u, --update         Aktualizovat systém pomocí apt a flatpak"
-  echo "  -i, --install        Instalace balíčků pomocí apt, flatpak a .deb"
-  echo "  -ia, --install-all   Nainstalovat všechny balíčky, odinstalovat nepotřebné, vyčistit systém a nastavit VLC"
-  echo "  -r, --remove         Odinstalovat nepotřebné balíčky"
-  echo "  -c, --clean          Vyčistit systém"
-  echo "  -v, --vlc            Nastavit VLC jako výchozí přehrávač pro multimédia"
-  echo "  -h, --help           Zobrazit tuto nápovědu"
+  echo "  -u, --update       Aktualizovat systém pomocí apt a flatpak"
+  echo "  -i, --install      Nabídne interaktivní instalaci balíčků pomocí apt, flatpak a .deb"
+  echo "  -ia, --install-all Nainstalovat všechny balíčky pomocí apt, flatpak a .deb"
+  echo "  -a, --apps         Zobrazit seznam aplikací zahrnutých ve skriptu"
 }
 
 # Zpracování argumentů příkazové řádky
@@ -176,18 +170,9 @@ case "$1" in
     install_all_apt_packages
     install_deb_packages
     install_flatpak_if_not_in_apt
-    remove_unwanted_packages
-    clean_system
-    set_vlc_as_default
     ;;
-  -r|--remove)
-    remove_unwanted_packages
-    ;;
-  -c|--clean)
-    clean_system
-    ;;
-  -v|--vlc)
-    set_vlc_as_default
+  -a|--apps)
+    show_applications
     ;;
   -h|--help)
     show_help
