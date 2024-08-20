@@ -20,7 +20,7 @@ deb_packages=("Discord" "OnlyOffice Desktop Editors")
 flatpak_packages=("com.spotify.Client" "com.visualstudio.code" "com.bitwarden.desktop")
 
 # Seznam nechtěných balíčků k odinstalaci
-unwanted_packages=("libreoffice-common" "celluloid" "hypnotix" "rhythmbox" "matrix-appservice")
+unwanted_packages=("LibreOffice" "Celluloid" "Hypnotix" "Rhythmbox" "Matrix-appservice")
 
 # Funkce pro zobrazení seznamu všech aplikací, které skript obsahuje
 show_applications() {
@@ -40,6 +40,11 @@ show_applications() {
   for package in "${flatpak_packages[@]}"; do
     app_name=$(echo "$package" | awk -F '.' '{print $NF}')
     echo "    $app_name"
+  done
+  echo ""
+  echo -e "${RED}Následující aplikace budou odinstalovány:${NC}"
+  for package in "${unwanted_packages[@]}"; do
+    echo "    $package"
   done
   echo ""
 }
@@ -165,7 +170,7 @@ install_flatpak_if_not_in_apt() {
   
   for i in "${!flatpak_packages[@]}"; do
     package=${flatpak_packages[$i]}
-    app_name=$(echo "$package" | awk '{print tolower($1)}')
+    app_name=$(echo "$package" | awk -F '.' '{print $NF}')
     percentage=$(( (i + 1) * 100 / total_packages ))
     echo -e "[${GREEN}$percentage%${NC}] $app_name"
     
