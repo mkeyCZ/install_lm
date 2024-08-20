@@ -17,10 +17,10 @@ check_root() {
 # Definice seznamu balíčků s přívětivými názvy
 apt_packages=("Kodi" "VLC" "Audacity" "EasyTAG" "HandBrake" "Kdenlive" "OBS Studio" "GIMP" "Krita" "VirtualBox" "Microsoft TrueType Fonts (ttf-mscorefonts-installer)" "Midnight Commander" "Tmux" "Neofetch")
 deb_packages=("Discord" "OnlyOffice Desktop Editors")
-flatpak_packages=("Spotify" "Visual Studio Code" "Bitwarden")
+flatpak_packages=("com.spotify.Client" "com.visualstudio.code" "com.bitwarden.desktop")
 
 # Seznam nechtěných balíčků k odinstalaci
-unwanted_packages=("libreoffice*" "celluloid" "hypnotix" "rhythmbox" "matrix-appservice")
+unwanted_packages=("libreoffice-common" "celluloid" "hypnotix" "rhythmbox" "matrix-appservice")
 
 # Funkce pro zobrazení seznamu všech aplikací, které skript obsahuje
 show_applications() {
@@ -38,7 +38,8 @@ show_applications() {
   echo ""
   echo -e "${GREEN}Flatpak balíčky:${NC}"
   for package in "${flatpak_packages[@]}"; do
-    echo "    $package"
+    app_name=$(echo "$package" | awk -F '.' '{print $NF}')
+    echo "    $app_name"
   done
   echo ""
 }
@@ -58,6 +59,9 @@ remove_unwanted_packages() {
       echo -e "${YELLOW}$package nebyl nalezen, přeskočeno.${NC}"
     fi
   done
+
+  echo -e "${YELLOW}Odstranění dalších součástí LibreOffice...${NC}"
+  sudo apt remove --purge -y libreoffice-core libreoffice-writer libreoffice-calc libreoffice-impress libreoffice-draw libreoffice-math libreoffice-base libreoffice-common
   echo -e "${GREEN}Odinstalace nechtěných aplikací dokončena.${NC}"
   echo ""
 }
@@ -163,22 +167,22 @@ install_flatpak_if_not_in_apt() {
     package=${flatpak_packages[$i]}
     app_name=$(echo "$package" | awk '{print tolower($1)}')
     percentage=$(( (i + 1) * 100 / total_packages ))
-    echo -e "[${GREEN}$percentage%${NC}] $package"
+    echo -e "[${GREEN}$percentage%${NC}] $app_name"
     
     # Zkontrolujeme, zda je balíček dostupný v apt
     if ! apt-cache show "$app_name" &>/dev/null; then
       # Zkontrolujeme, zda je již balíček nainstalován přes flatpak
       if flatpak list | grep -q "$package"; then
-        echo -e "${YELLOW}$package je již nainstalován pomocí flatpak, přeskočeno.${NC}"
+        echo -e "${YELLOW}$app_name je již nainstalován pomocí flatpak, přeskočeno.${NC}"
       else
         if flatpak install -y "$package"; then
-          echo -e "${GREEN}Instalace aplikace $package dokončena.${NC}"
+          echo -e "${GREEN}Instalace aplikace $app_name dokončena.${NC}"
         else
-          echo -e "${RED}Chyba při instalaci $package pomocí flatpak.${NC}" >&2
+          echo -e "${RED}Chyba při instalaci $app_name pomocí flatpak.${NC}" >&2
         fi
       fi
     else
-      echo -e "${YELLOW}$package je dostupný v apt. Přeskočeno.${NC}"
+      echo -e "${YELLOW}$app_name je dostupný v apt. Přeskočeno.${NC}"
     fi
   done
   echo -e "${GREEN}Instalace balíčků z Flathub dokončena.${NC}"
