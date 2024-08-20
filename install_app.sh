@@ -14,10 +14,13 @@ check_root() {
   fi
 }
 
-# Definice seznamu balíčků
-apt_packages=("kodi" "vlc" "audacity" "easytag" "handbrake" "kdenlive" "obs-studio" "gimp" "krita" "virtualbox" "ttf-mscorefonts-installer")
-deb_packages=("Discord" "OnlyOffice Desktop Editors" "Subtitle Edit")
-flatpak_packages=("com.spotify.Client" "com.visualstudio.code" "com.bitwarden.desktop")
+# Definice seznamu balíčků s přívětivými názvy
+apt_packages=("Kodi" "VLC" "Audacity" "EasyTAG" "HandBrake" "Kdenlive" "OBS Studio" "GIMP" "Krita" "VirtualBox" "Microsoft TrueType Fonts (ttf-mscorefonts-installer)" "Midnight Commander" "Tmux" "Neofetch")
+deb_packages=("Discord" "OnlyOffice Desktop Editors")
+flatpak_packages=("Spotify" "Visual Studio Code" "Bitwarden")
+
+# Seznam nechtěných balíčků k odinstalaci
+unwanted_packages=("libreoffice*" "celluloid" "hypnotix" "rhythmbox" "matrix-appservice")
 
 # Funkce pro zobrazení seznamu všech aplikací, které skript obsahuje
 show_applications() {
@@ -25,22 +28,37 @@ show_applications() {
   echo ""
   echo -e "${GREEN}APT balíčky:${NC}"
   for package in "${apt_packages[@]}"; do
-    echo "- $package"
+    echo "    $package"
   done
   echo ""
   echo -e "${GREEN}.deb balíčky:${NC}"
   for package in "${deb_packages[@]}"; do
-    echo "- $package"
+    echo "    $package"
   done
   echo ""
   echo -e "${GREEN}Flatpak balíčky:${NC}"
   for package in "${flatpak_packages[@]}"; do
-    app_name=$(echo "$package" | awk -F '.' '{print $NF}')
-    echo "- $app_name"
+    echo "    $package"
   done
   echo ""
-  echo -e "${GREEN}Microsoft fonty:${NC}"
-  echo "- ttf-mscorefonts-installer"
+}
+
+# Funkce pro odinstalaci nechtěných balíčků
+remove_unwanted_packages() {
+  echo -e "${YELLOW}Odinstalace nechtěných aplikací...${NC}"
+  for package in "${unwanted_packages[@]}"; do
+    if dpkg -l | grep -q "^ii  $package "; then
+      echo -e "${YELLOW}Odinstalace $package...${NC}"
+      if sudo apt remove --purge -y "$package"; then
+        echo -e "${GREEN}$package byl úspěšně odinstalován.${NC}"
+      else
+        echo -e "${RED}Chyba při odinstalaci $package.${NC}" >&2
+      fi
+    else
+      echo -e "${YELLOW}$package nebyl nalezen, přeskočeno.${NC}"
+    fi
+  done
+  echo -e "${GREEN}Odinstalace nechtěných aplikací dokončena.${NC}"
   echo ""
 }
 
@@ -84,10 +102,12 @@ install_all_apt_packages() {
     package=${apt_packages[$i]}
     percentage=$(( (i + 1) * 100 / total_packages ))
     echo -e "[${GREEN}$percentage%${NC}] $package"
-    if dpkg -l | grep -q "^ii  $package "; then
+    # Převod názvu na název balíčku pro apt
+    apt_package=$(echo "$package" | awk '{print tolower($1)}')
+    if dpkg -l | grep -q "^ii  $apt_package "; then
       echo -e "${YELLOW}$package je již nainstalován, přeskočeno.${NC}"
     else
-      if sudo apt install -y "$package"; then
+      if sudo apt install -y "$apt_package"; then
         echo -e "${GREEN}Instalace aplikace $package dokončena.${NC}"
       else
         echo -e "${RED}Chyba při instalaci $package.${NC}" >&2
@@ -98,7 +118,7 @@ install_all_apt_packages() {
   echo ""
 }
 
-# Funkce pro stažení a instalaci Discord, OnlyOffice, a Subtitle Edit pomocí .deb balíčků
+# Funkce pro stažení a instalaci Discord a OnlyOffice pomocí .deb balíčků
 install_deb_packages() {
   echo -e "${YELLOW}Instalace balíčků z .deb...${NC}"
   total_packages=${#deb_packages[@]}
@@ -108,6 +128,7 @@ install_deb_packages() {
     percentage=$(( (i + 1) * 100 / total_packages ))
     echo -e "[${GREEN}$percentage%${NC}] $package"
     
+    # Kontrola instalace pomocí dpkg
     if dpkg -l | grep -q "^ii  ${package,,} "; then
       echo -e "${YELLOW}$package je již nainstalován, přeskočeno.${NC}"
     else
@@ -125,13 +146,6 @@ install_deb_packages() {
         sudo dpkg -i onlyoffice-desktopeditors.deb
         sudo apt-get install -f -y  # Řešení závislostí
         rm onlyoffice-desktopeditors.deb
-      elif [ "$package" == "Subtitle Edit" ]; then
-        echo -e "${YELLOW}Stahování Subtitle Edit...${NC}"
-        wget -O subtitleedit.deb "https://github.com/SubtitleEdit/subtitleedit/releases/download/3.6.13/subtitleedit_3.6.13-1_amd64.deb"
-        echo -e "${YELLOW}Instalace Subtitle Edit...${NC}"
-        sudo dpkg -i subtitleedit.deb
-        sudo apt-get install -f -y  # Řešení závislostí
-        rm subtitleedit.deb
       fi
       echo -e "${GREEN}Instalace aplikace $package dokončena.${NC}"
     fi
@@ -147,24 +161,24 @@ install_flatpak_if_not_in_apt() {
   
   for i in "${!flatpak_packages[@]}"; do
     package=${flatpak_packages[$i]}
-    app_name=$(echo "$package" | awk -F '.' '{print $NF}')
+    app_name=$(echo "$package" | awk '{print tolower($1)}')
     percentage=$(( (i + 1) * 100 / total_packages ))
-    echo -e "[${GREEN}$percentage%${NC}] $app_name"
+    echo -e "[${GREEN}$percentage%${NC}] $package"
     
     # Zkontrolujeme, zda je balíček dostupný v apt
     if ! apt-cache show "$app_name" &>/dev/null; then
       # Zkontrolujeme, zda je již balíček nainstalován přes flatpak
       if flatpak list | grep -q "$package"; then
-        echo -e "${YELLOW}$app_name je již nainstalován pomocí flatpak, přeskočeno.${NC}"
+        echo -e "${YELLOW}$package je již nainstalován pomocí flatpak, přeskočeno.${NC}"
       else
         if flatpak install -y "$package"; then
-          echo -e "${GREEN}Instalace aplikace $app_name dokončena.${NC}"
+          echo -e "${GREEN}Instalace aplikace $package dokončena.${NC}"
         else
-          echo -e "${RED}Chyba při instalaci $app_name pomocí flatpak.${NC}" >&2
+          echo -e "${RED}Chyba při instalaci $package pomocí flatpak.${NC}" >&2
         fi
       fi
     else
-      echo -e "${YELLOW}$app_name je dostupný v apt. Přeskočeno.${NC}"
+      echo -e "${YELLOW}$package je dostupný v apt. Přeskočeno.${NC}"
     fi
   done
   echo -e "${GREEN}Instalace balíčků z Flathub dokončena.${NC}"
@@ -189,6 +203,7 @@ case "$1" in
   -i|--install)
     show_applications
     prompt_continue_installation
+    remove_unwanted_packages
     install_all_apt_packages
     install_deb_packages
     install_flatpak_if_not_in_apt
@@ -196,6 +211,7 @@ case "$1" in
   -ia|--install-all)
     show_applications
     prompt_continue_installation
+    remove_unwanted_packages
     install_all_apt_packages
     install_deb_packages
     install_flatpak_if_not_in_apt
