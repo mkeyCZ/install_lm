@@ -36,11 +36,11 @@ Tento skript je určen pro uživatele Linux Mint a automatizuje proces aktualiza
 ### `.deb` balíčky
 
 - Discord
+- Subtitle edit
 - OnlyOffice Desktop Editors
 
 ### Flatpak balíčky
 
-- Flatseal
 - Spotify
 - Visual Studio Code
 - Bitwarden
