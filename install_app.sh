@@ -20,7 +20,7 @@ deb_packages=("Discord" "OnlyOffice Desktop Editors")
 flatpak_packages=("com.spotify.Client" "com.visualstudio.code" "com.bitwarden.desktop")
 
 # Seznam nechtěných balíčků k odinstalaci
-unwanted_packages=("LibreOffice" "Celluloid" "Hypnotix" "Rhythmbox" "Matrix-appservice")
+unwanted_packages=("LibreOffice" "Celluloid" "Hypnotix" "Rhythmbox" "mintchat")
 
 # Funkce pro zobrazení seznamu všech aplikací, které skript obsahuje
 show_applications() {
