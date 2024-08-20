@@ -10,22 +10,6 @@ check_root() {
   fi
 }
 
-# Přidání potřebných PPA repozitářů
-add_ppa_repositories() {
-  echo "Přidávání PPA repozitářů pro onlyoffice-desktopeditors, grub-customizer a discord..."
-  
-  # PPA pro OnlyOffice Desktop Editors
-  sudo add-apt-repository ppa:onlyoffice/desktopeditors -y
-  
-  # PPA pro Grub Customizer
-  sudo add-apt-repository ppa:danielrichter2007/grub-customizer -y
-  
-  # PPA pro Discord
-  sudo add-apt-repository ppa:ubuntu-desktop/ubuntu-make -y
-  
-  sudo apt update
-}
-
 # Funkce pro aktualizaci systému pomocí apt
 update_system_apt() {
   echo "Aktualizace systému pomocí apt..."
@@ -46,9 +30,8 @@ update_system_flatpak() {
   fi
 }
 
-# Seznam balíčků pro apt a flatpak
-apt_packages=("kodi" "vlc" "audacity" "easytag" "handbrake" "kdenlive" "obs-studio" "onlyoffice-desktopeditors" "gimp" "krita" "virtualbox" "grub-customizer" "discord")
-flatpak_packages=("com.github.tchx84.Flatseal" "com.spotify.Client" "com.visualstudio.code" "com.discordapp.Discord" "com.bitwarden.desktop")
+# Seznam balíčků pro apt (bez grub-customizer)
+apt_packages=("kodi" "vlc" "audacity" "easytag" "handbrake" "kdenlive" "obs-studio" "gimp" "krita" "virtualbox")
 
 # Funkce pro instalaci všech balíčků pomocí apt s kontrolou nainstalovaných balíčků
 install_all_apt_packages() {
@@ -67,8 +50,39 @@ install_all_apt_packages() {
   done
 }
 
+# Funkce pro stažení a instalaci Discord a OnlyOffice pomocí .deb balíčků
+install_deb_packages() {
+  echo "Instalace Discord a OnlyOffice pomocí .deb balíčků..."
+
+  # Stažení a instalace Discord
+  if dpkg -l | grep -q "^ii  discord "; then
+    echo "Discord je již nainstalován, přeskočeno."
+  else
+    echo "Stahování Discord..."
+    wget -O discord.deb "https://discord.com/api/download?platform=linux&format=deb"
+    echo "Instalace Discord..."
+    sudo dpkg -i discord.deb
+    sudo apt-get install -f -y  # Řešení závislostí
+    rm discord.deb
+  fi
+
+  # Stažení a instalace OnlyOffice Desktop Editors
+  if dpkg -l | grep -q "^ii  onlyoffice-desktopeditors "; then
+    echo "OnlyOffice Desktop Editors je již nainstalován, přeskočeno."
+  else
+    echo "Stahování OnlyOffice Desktop Editors..."
+    wget -O onlyoffice-desktopeditors.deb "https://download.onlyoffice.com/install/desktop/editors/linux/onlyoffice-desktopeditors_amd64.deb"
+    echo "Instalace OnlyOffice Desktop Editors..."
+    sudo dpkg -i onlyoffice-desktopeditors.deb
+    sudo apt-get install -f -y  # Řešení závislostí
+    rm onlyoffice-desktopeditors.deb
+  fi
+}
+
 # Funkce pro instalaci aplikací pomocí flatpak s kontrolou nainstalovaných balíčků
 install_flatpak_if_not_in_apt() {
+  flatpak_packages=("com.github.tchx84.Flatseal" "com.spotify.Client" "com.visualstudio.code" "com.bitwarden.desktop")
+
   for package in "${flatpak_packages[@]}"; do
     app_name=$(echo "$package" | awk -F '.' '{print $NF}')
     
@@ -91,45 +105,12 @@ install_flatpak_if_not_in_apt() {
   done
 }
 
-# Interaktivní výběr balíčků k instalaci pomocí apt
-select_apt_packages() {
-  echo "Vyberte balíčky, které chcete nainstalovat pomocí apt:"
-  selected_packages=()
-
-  for package in "${apt_packages[@]}"; do
-    read -p "Chcete nainstalovat $package? (y/n) " yn
-    case $yn in
-      [Yy]*) selected_packages+=("$package");;
-      [Nn]*) ;;
-      *) echo "Neplatná volba. Přeskočeno.";;
-    esac
-  done
-
-  if [ ${#selected_packages[@]} -eq 0 ]; then
-    echo "Žádné balíčky k instalaci pomocí apt nebyly vybrány."
-  else
-    echo "Instalace vybraných balíčků pomocí apt..."
-    for package in "${selected_packages[@]}"; do
-      if dpkg -l | grep -q "^ii  $package "; then
-        echo "$package je již nainstalován, přeskočeno."
-      else
-        echo "Instalace $package..."
-        if sudo apt install -y "$package"; then
-          echo "$package byl úspěšně nainstalován."
-        else
-          echo "Chyba při instalaci $package." >&2
-        fi
-      fi
-    done
-  fi
-}
-
 # Funkce pro zobrazení nápovědy
 show_help() {
   echo "Použití: $0 [volba]"
   echo "  -u, --update       Aktualizovat systém pomocí apt a flatpak"
-  echo "  -i, --install      Nabídne interaktivní instalaci balíčků pomocí apt a flatpak"
-  echo "  -ia, --install-all Nainstalovat všechny balíčky pomocí apt a flatpak"
+  echo "  -i, --install      Nabídne interaktivní instalaci balíčků pomocí apt, flatpak a .deb"
+  echo "  -ia, --install-all Nainstalovat všechny balíčky pomocí apt, flatpak a .deb"
   echo "  -h, --help         Zobrazit tuto nápovědu"
 }
 
@@ -140,12 +121,13 @@ case "$1" in
     update_system_flatpak
     ;;
   -i|--install)
-    select_apt_packages
+    install_all_apt_packages
+    install_deb_packages
     install_flatpak_if_not_in_apt
     ;;
   -ia|--install-all)
-    add_ppa_repositories
     install_all_apt_packages
+    install_deb_packages
     install_flatpak_if_not_in_apt
     ;;
   -h|--help)
