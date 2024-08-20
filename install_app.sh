@@ -14,6 +14,11 @@ check_root() {
   fi
 }
 
+# Definice seznamu balíčků
+apt_packages=("kodi" "vlc" "audacity" "easytag" "handbrake" "kdenlive" "obs-studio" "gimp" "krita" "virtualbox" "ttf-mscorefonts-installer")
+deb_packages=("Discord" "OnlyOffice Desktop Editors" "Subtitle Edit")
+flatpak_packages=("com.spotify.Client" "com.visualstudio.code" "com.bitwarden.desktop")
+
 # Funkce pro zobrazení seznamu všech aplikací, které skript obsahuje
 show_applications() {
   echo -e "${YELLOW}Tento skript nainstaluje následující aplikace:${NC}"
@@ -24,9 +29,9 @@ show_applications() {
   done
   echo ""
   echo -e "${GREEN}.deb balíčky:${NC}"
-  echo "- Discord"
-  echo "- OnlyOffice Desktop Editors"
-  echo "- Subtitle Edit"
+  for package in "${deb_packages[@]}"; do
+    echo "- $package"
+  done
   echo ""
   echo -e "${GREEN}Flatpak balíčky:${NC}"
   for package in "${flatpak_packages[@]}"; do
@@ -71,9 +76,6 @@ update_system_flatpak() {
   echo ""
 }
 
-# Seznam balíčků pro apt (včetně Microsoft fontů)
-apt_packages=("kodi" "vlc" "audacity" "easytag" "handbrake" "kdenlive" "obs-studio" "gimp" "krita" "virtualbox" "ttf-mscorefonts-installer")
-
 # Funkce pro instalaci všech balíčků pomocí apt s kontrolou nainstalovaných balíčků
 install_all_apt_packages() {
   total_packages=${#apt_packages[@]}
@@ -99,34 +101,31 @@ install_all_apt_packages() {
 # Funkce pro stažení a instalaci Discord, OnlyOffice, a Subtitle Edit pomocí .deb balíčků
 install_deb_packages() {
   echo -e "${YELLOW}Instalace balíčků z .deb...${NC}"
-  # Discord, OnlyOffice Desktop Editors, a Subtitle Edit
-  deb_packages=("discord" "onlyoffice-desktopeditors" "subtitleedit")
   total_packages=${#deb_packages[@]}
 
-  # Stažení a instalace balíčků
   for i in "${!deb_packages[@]}"; do
-    percentage=$(( (i + 1) * 100 / total_packages ))
     package=${deb_packages[$i]}
+    percentage=$(( (i + 1) * 100 / total_packages ))
     echo -e "[${GREEN}$percentage%${NC}] $package"
     
-    if dpkg -l | grep -q "^ii  $package "; then
+    if dpkg -l | grep -q "^ii  ${package,,} "; then
       echo -e "${YELLOW}$package je již nainstalován, přeskočeno.${NC}"
     else
-      if [ "$package" == "discord" ]; then
+      if [ "$package" == "Discord" ]; then
         echo -e "${YELLOW}Stahování Discord...${NC}"
         wget -O discord.deb "https://discord.com/api/download?platform=linux&format=deb"
         echo -e "${YELLOW}Instalace Discord...${NC}"
         sudo dpkg -i discord.deb
         sudo apt-get install -f -y  # Řešení závislostí
         rm discord.deb
-      elif [ "$package" == "onlyoffice-desktopeditors" ]; then
+      elif [ "$package" == "OnlyOffice Desktop Editors" ]; then
         echo -e "${YELLOW}Stahování OnlyOffice Desktop Editors...${NC}"
         wget -O onlyoffice-desktopeditors.deb "https://download.onlyoffice.com/install/desktop/editors/linux/onlyoffice-desktopeditors_amd64.deb"
         echo -e "${YELLOW}Instalace OnlyOffice Desktop Editors...${NC}"
         sudo dpkg -i onlyoffice-desktopeditors.deb
         sudo apt-get install -f -y  # Řešení závislostí
         rm onlyoffice-desktopeditors.deb
-      elif [ "$package" == "subtitleedit" ]; then
+      elif [ "$package" == "Subtitle Edit" ]; then
         echo -e "${YELLOW}Stahování Subtitle Edit...${NC}"
         wget -O subtitleedit.deb "https://github.com/SubtitleEdit/subtitleedit/releases/download/3.6.13/subtitleedit_3.6.13-1_amd64.deb"
         echo -e "${YELLOW}Instalace Subtitle Edit...${NC}"
@@ -143,7 +142,6 @@ install_deb_packages() {
 
 # Funkce pro instalaci aplikací pomocí flatpak s kontrolou nainstalovaných balíčků
 install_flatpak_if_not_in_apt() {
-  flatpak_packages=("com.spotify.Client" "com.visualstudio.code" "com.bitwarden.desktop")
   total_packages=${#flatpak_packages[@]}
   echo -e "${YELLOW}Instalace balíčků z Flathub...${NC}"
   
