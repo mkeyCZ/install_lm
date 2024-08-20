@@ -32,11 +32,13 @@ Tento skript je určen pro uživatele Linux Mint a automatizuje proces aktualiza
 - Krita
 - VirtualBox
 - Microsoft TrueType Fonts (ttf-mscorefonts-installer)
+- Midnight Commander
+- Tmux
+- Neofetch
 
 ### `.deb` balíčky
 
 - Discord
-- Subtitle edit
 - OnlyOffice Desktop Editors
 
 ### Flatpak balíčky
