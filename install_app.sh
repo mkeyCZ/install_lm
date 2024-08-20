@@ -22,6 +22,7 @@ show_applications() {
   echo ".deb balíčky:"
   echo "- Discord"
   echo "- OnlyOffice Desktop Editors"
+  echo "- Subtitle Edit"
   echo ""
   echo "Flatpak balíčky:"
   for package in "${flatpak_packages[@]}"; do
@@ -78,14 +79,14 @@ install_all_apt_packages() {
   echo "Instalace balíčků z apt dokončena."
 }
 
-# Funkce pro stažení a instalaci Discord a OnlyOffice pomocí .deb balíčků
+# Funkce pro stažení a instalaci Discord, OnlyOffice, a Subtitle Edit pomocí .deb balíčků
 install_deb_packages() {
   echo "Instalace balíčků z .deb..."
-  # Discord a OnlyOffice Desktop Editors
-  deb_packages=("discord" "onlyoffice-desktopeditors")
+  # Discord, OnlyOffice Desktop Editors, a Subtitle Edit
+  deb_packages=("discord" "onlyoffice-desktopeditors" "subtitleedit")
   total_packages=${#deb_packages[@]}
 
-  # Stažení a instalace Discord
+  # Stažení a instalace balíčků
   for i in "${!deb_packages[@]}"; do
     percentage=$(( (i + 1) * 100 / total_packages ))
     package=${deb_packages[$i]}
@@ -108,6 +109,13 @@ install_deb_packages() {
         sudo dpkg -i onlyoffice-desktopeditors.deb
         sudo apt-get install -f -y  # Řešení závislostí
         rm onlyoffice-desktopeditors.deb
+      elif [ "$package" == "subtitleedit" ]; then
+        echo "Stahování Subtitle Edit..."
+        wget -O subtitleedit.deb "https://github.com/SubtitleEdit/subtitleedit/releases/download/3.6.13/subtitleedit_3.6.13-1_amd64.deb"
+        echo "Instalace Subtitle Edit..."
+        sudo dpkg -i subtitleedit.deb
+        sudo apt-get install -f -y  # Řešení závislostí
+        rm subtitleedit.deb
       fi
       echo "Instalace aplikace $package dokončena."
     fi
@@ -117,7 +125,7 @@ install_deb_packages() {
 
 # Funkce pro instalaci aplikací pomocí flatpak s kontrolou nainstalovaných balíčků
 install_flatpak_if_not_in_apt() {
-  flatpak_packages=("com.github.tchx84.Flatseal" "com.spotify.Client" "com.visualstudio.code" "com.bitwarden.desktop")
+  flatpak_packages=("com.spotify.Client" "com.visualstudio.code" "com.bitwarden.desktop")
   total_packages=${#flatpak_packages[@]}
   echo "Instalace balíčků z Flathub..."
   
